@@ -1,0 +1,9 @@
+# local reverse-engineering probes - not part of the deliverable
+analysis/
+
+# python / tooling
+__pycache__/
+*.py[cod]
+.venv/
+.ruff_cache/
+.pytest_cache/

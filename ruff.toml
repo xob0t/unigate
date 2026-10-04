@@ -1,0 +1,28 @@
+line-length = 100
+target-version = "py310"
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes (unused imports/vars)
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "A",    # flake8-builtins shadowing
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "RET",  # flake8-return
+    "ARG",  # unused function arguments
+    "PTH",  # use pathlib instead of os/glob
+    "PERF", # perflint
+    "RUF",  # ruff-specific (unused noqa, etc.)
+]
+ignore = [
+    "E741",  # ambiguous variable names (assembly analysis uses short names)
+    "SIM108", # ternary is less readable for branching patch logic
+]
+
+[format]
+quote-style = "double"
