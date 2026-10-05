@@ -15,6 +15,9 @@ Patches the editor binary (Unity.exe) so that:
      other build target whose player module is actually installed.
   2. The editor considers itself licensed at startup, so the CEF sign-in /
      activation window and the batchmode "not activated" abort are skipped.
+  3. The editor reports the Pro edition (entitlement bit 0), which unlocks
+     the edition-gated features: disabling the "Made with Unity" splash
+     screen and the dark theme.
 
 Instead of hardcoded addresses, each function is located by a masked byte
 signature (internal call targets wildcarded). A site is patched only when
@@ -28,7 +31,6 @@ Usage:
   uv run unigate.py --editor <dir>              # patch (backs up first)
   uv run unigate.py --editor <dir> --check      # report site states only
   uv run unigate.py --editor <dir> --restore    # restore newest backup
-  uv run unigate.py --editor <dir> --pro-theme  # also force Pro license bit
 
 <dir> is the Editor directory containing Unity.exe.
 
@@ -68,7 +70,7 @@ SITE_DEFS = [
         "IsProLicensed",
         "48 83 EC 28 E8 ?? ?? ?? ?? 0F B6 80 68 01 00 00 24 01 48 83 C4 28 C3",
         4,
-        "Pro entitlement bit 0 (license type display / dark theme)",
+        "Pro edition bit 0 (gates splash-screen disabling and dark theme)",
     ),
 ]
 
@@ -82,7 +84,7 @@ def compile_masked(pattern: str) -> re.Pattern:
     )
 
 
-def build_sites(pro: bool):
+def build_sites():
     sites = []
     for label, pattern, call_at, desc in SITE_DEFS:
         tokens = pattern.split()
@@ -97,8 +99,6 @@ def build_sites(pro: bool):
                 "desc": desc,
             }
         )
-    if not pro:
-        sites = [s for s in sites if s["label"] != "IsProLicensed"]
     return sites
 
 
@@ -170,7 +170,7 @@ def write_out(exe: Path, data: bytes, rows) -> None:
 def cmd_check(editor: Path) -> int:
     exe = editor / "Unity.exe"
     pe = pefile.PE(str(exe), fast_load=True)
-    rows, target = survey(pe, exe.read_bytes(), build_sites(pro=True))
+    rows, target = survey(pe, exe.read_bytes(), build_sites())
     print(f"editor: {editor}")
     vita_note = "installed" if psp2_module(editor) else "NOT installed (Vita target stays hidden)"
     print(f"  PSP2 module: {vita_note}")
@@ -191,10 +191,13 @@ def cmd_check(editor: Path) -> int:
         rc = 1
     else:
         print(f"  GetLicense() @ 0x{target:X} - consistent across sites")
+    pro_row = next((r for r in rows if r["site"]["label"] == "IsProLicensed"), None)
+    if pro_row is not None and pro_row["state"] == "patched":
+        print("  splash screen: disabling allowed (Pro edition forced)")
     return rc
 
 
-def cmd_patch(editor: Path, pro: bool) -> int:
+def cmd_patch(editor: Path) -> int:
     exe = editor / "Unity.exe"
     try:
         with exe.open("r+b"):
@@ -214,7 +217,7 @@ def cmd_patch(editor: Path, pro: bool) -> int:
 
     pe = pefile.PE(str(exe), fast_load=True)
     data = bytearray(exe.read_bytes())
-    rows, target = survey(pe, bytes(data), build_sites(pro=pro))
+    rows, target = survey(pe, bytes(data), build_sites())
 
     matched = [r for r in rows if r["off"] is not None]
     if target is None and not matched:
@@ -267,7 +270,6 @@ def main() -> int:
     )
     ap.add_argument("--check", action="store_true", help="report only")
     ap.add_argument("--restore", action="store_true", help="restore newest backup")
-    ap.add_argument("--pro-theme", action="store_true", help="also patch IsProLicensed")
     args = ap.parse_args()
 
     editor = Path(args.editor)
@@ -277,7 +279,7 @@ def main() -> int:
         return cmd_restore(editor)
     if args.check:
         return cmd_check(editor)
-    return cmd_patch(editor, args.pro_theme)
+    return cmd_patch(editor)
 
 
 if __name__ == "__main__":
