@@ -132,7 +132,7 @@ SITES_53 = [
     ),
     (
         "LicenseFlags",
-        "48 8B 81 48 01 00 00 C3 CC CC",
+        "48 8B 81 48 01 00 00 C3 CC CC CC",
         None,
         "LicenseManager::GetTokens() - entitlement word every license check reads",
         LOAD_TOKENS,
